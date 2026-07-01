@@ -1,7 +1,5 @@
 # Production requirements — only what server.py actually needs
 fastapi==0.110.1
-emergentintegrations @ https://customer-assets.emergentagent.com/internal-asset/library/emergentintegrations-0.2.0-py3-none-any.whl
-litellm @ https://customer-assets.emergentagent.com/internal-asset/library/litellm-1.80.0-py3-none-any.whl#sha256=adf398c513273de9341f61822296c6b2145f7f2dc4a69daf3ac04829f5bde3f8
 uvicorn==0.25.0
 starlette==0.37.2
 pydantic==2.13.4
