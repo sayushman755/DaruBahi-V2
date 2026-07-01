@@ -1,0 +1,32 @@
+{
+  "summary": "DaruBahi MVP tested end-to-end. Backend: 18/18 pytest cases passed (auth OTP dev bypass, /auth/me, unauth 401, categories presets + custom, product CRUD + soft delete, sale with stock decrement + profit + over-stock rejection, stock-entry closing computation + negative closing rejection, dashboard, daily & monthly reports). Frontend E2E via mobile viewport (390x844) on the public Expo preview: login with 9999999999 -> OTP autofilled to 123456 -> Verify -> Dashboard renders with quick actions; Catalog tab shows chips + product list; Reports Daily/Monthly toggle renders monthly figures (Sales, Profit, Remaining Stock, Top 5, Category-wise); Sell, Daily Entry, Add Product screens all mount with correct testIDs; More -> Logout returns to /login. No deprecated Expo packages, no red screen. Console shows only benign warnings (shadow*/pointerEvents deprecation, useNativeDriver fallback on web).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "global", "issues": ["React Native web warnings: 'shadow*' style props deprecated (use boxShadow) and 'props.pointerEvents' deprecated (use style.pointerEvents). Cosmetic only, but worth cleaning up in theme.ts / component styles."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_darubahi_api.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Optional: migrate shadow* style props to boxShadow and pointerEvents to style.pointerEvents to silence RN web deprecation warnings."
+  ],
+  "critical_code_review_comments": [
+    "server.py is single-file ~580 lines; acceptable for MVP but consider splitting auth/products/sales/reports into routers if it grows further.",
+    "get_phone_from_token is used directly by /auth/setup-shop (bypasses current_user which requires shop) — correct pattern, well handled.",
+    "MongoDB _id is properly excluded via projection {'_id': 0} and clean() helper. Good.",
+    "JWT_SECRET falls back to 'dev-secret' — fine for MVP but should be enforced in prod deployment."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_darubahi_api.py (new)",
+    "/app/backend/tests/__init__.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Test QA shop (TEST_QA_Shop / TEST_QA_Owner) auto-created for +919999999999 via setup-shop fixture. TEST_Brand_* and TEST_CAT_* rows may remain in DB for the QA user — harmless and prefixed for cleanup.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "QA login: 9999999999 / 123456. Shop is already set up for this number after this run, so verify-otp returns is_new_user=false and the app routes straight to /(tabs). To exercise the setup screen again, delete the user from the users collection for phone +919999999999. Backend base is EXPO_PUBLIC_BACKEND_URL + /api. Pytest file at /app/backend/tests/test_darubahi_api.py can be reused as regression suite.",
+  "rca_of_issue": "N/A - no defects found."
+}

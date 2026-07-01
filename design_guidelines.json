@@ -1,0 +1,116 @@
+{
+  "app_name": "DaruBahi",
+  "personality": "1 iOS-Native Clean",
+  "personality_one_liner": "A trustworthy, fast, and highly legible digital ledger with a warm, paper-like foundation and amber accents to subtly reflect the liquor trade.",
+  "color": {
+    "surface": { "light": "#FAFAF9", "dark": "#1C1917" },
+    "onSurface": { "light": "#1C1917", "dark": "#FAFAF9" },
+    "surfaceSecondary": { "light": "#FFFFFF", "dark": "#292524" },
+    "onSurfaceSecondary": { "light": "#1C1917", "dark": "#FAFAF9" },
+    "surfaceTertiary": { "light": "#F5F5F4", "dark": "#44403C" },
+    "onSurfaceTertiary": { "light": "#44403C", "dark": "#D6D3D1" },
+    "surfaceInverse": { "light": "#1C1917", "dark": "#FAFAF9" },
+    "onSurfaceInverse": { "light": "#FAFAF9", "dark": "#1C1917" },
+    "brand": { "light": "#D97706", "dark": "#F59E0B" },
+    "brandPrimary": { "light": "#D97706", "dark": "#F59E0B" },
+    "onBrandPrimary": { "light": "#FFFFFF", "dark": "#1C1917" },
+    "brandSecondary": { "light": "#FDE68A", "dark": "#78350F" },
+    "onBrandSecondary": { "light": "#92400E", "dark": "#FDE68A" },
+    "brandTertiary": { "light": "#FEF3C7", "dark": "#451A03" },
+    "onBrandTertiary": { "light": "#92400E", "dark": "#FDE68A" },
+    "success": { "light": "#16A34A", "dark": "#22C55E" },
+    "onSuccess": { "light": "#FFFFFF", "dark": "#14532D" },
+    "warning": { "light": "#F59E0B", "dark": "#FBBF24" },
+    "onWarning": { "light": "#FFFFFF", "dark": "#78350F" },
+    "error": { "light": "#DC2626", "dark": "#EF4444" },
+    "onError": { "light": "#FFFFFF", "dark": "#7F1D1D" },
+    "info": { "light": "#0284C7", "dark": "#38BDF8" },
+    "onInfo": { "light": "#FFFFFF", "dark": "#0C4A6E" },
+    "border": { "light": "#E7E5E4", "dark": "#44403C" },
+    "borderStrong": { "light": "#A8A29E", "dark": "#78716C" },
+    "divider": { "light": "#F5F5F4", "dark": "#292524" }
+  },
+  "typography": {
+    "displayFontFamily": "Plus Jakarta Sans",
+    "textFontFamily": "Plus Jakarta Sans",
+    "scale": { "sm": 12, "base": 14, "lg": 16, "xl": 20, "2xl": 24 }
+  },
+  "spacing": { 
+    "rule": "Generous padding around ledger cards, precise tabular alignment for numbers, avoiding dense unstructured layouts. Focus on hit targets ≥ 44pt for shopkeepers in a rush.", 
+    "xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24, "2xl": 32, "3xl": 48 
+  },
+  "radius_tokens": { "sm": 6, "md": 12, "lg": 20, "pill": 999 },
+  "shadow_tier": 1,
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": ["Bottom tab bar", "Sticky header over scrolling daily entries", "Floating Action Button (FAB)"],
+    "dont's": ["Form fields", "Daily entry cards", "Numeric keypad backgrounds"]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    { 
+      "name": "Auth (Login/Signup)", 
+      "purpose": "Secure OTP entry to individual shop owner account.", 
+      "states": { "loading": "Centered brand spinner", "empty": "N/A", "error": "Inline text below OTP input with shake animation" },
+      "layout": "Full-bleed hero image background (amber whisky texture) with a dark gradient scrim (top to bottom). Bottom sheet style card anchored to the bottom containing the phone number/OTP input. Large thumb-friendly numeric keypad integration."
+    },
+    { 
+      "name": "Dashboard (Home)", 
+      "purpose": "Give a real-time pulse of today's sales, profit, and remaining stock at a glance.", 
+      "states": { "loading": "Skeleton cards for summary metrics", "empty": "Illustration of a ledger with 'Record your first sale today'", "error": "Retry button inside a subtle red-tinted banner" },
+      "layout": "Sticky Header with Shop Name. Top row: two large summary cards (Sales, Profit) with subtle amber texture background. Below: 'Recent Sales' card-based list. Bottom right FAB (Floating Action Button) with glass effect for 'New Sale'."
+    },
+    { 
+      "name": "Catalog & Stock", 
+      "purpose": "Browse liquor by category (Beer, Wine, Whisky, Rum, Desi) and view current stock.", 
+      "states": { "loading": "List skeleton", "empty": "Icon + 'Add products to your catalog'", "error": "Retry button" },
+      "layout": "Horizontal scrollable pill row for Categories (sticky under header). Main area: Vertical list of cards. Each card shows Brand, Size (750ml, etc.), Price, and a prominent 'Remaining Stock' badge. Use red warning color if stock < 10."
+    },
+    { 
+      "name": "Daily Entry & Sell (Action Flow)", 
+      "purpose": "Record a sale instantly or update daily inventory counts.", 
+      "states": { "loading": "Button spinner on save", "empty": "N/A", "error": "Validation message 'Quantity required'" },
+      "layout": "Bottom-sheet or full-screen modal over the Dashboard. High contrast. Step 1: Select Brand/Size (via search or dropdown). Step 2: Large numeric stepper `[ - ] 1 [ + ]` for quantity. Auto-calculates total amount and profit. 'Save Sale' button sticky at bottom in KeyboardAvoidingView."
+    },
+    { 
+      "name": "Reports", 
+      "purpose": "Monthly view of top 5 brands, total sales, and total profit.", 
+      "states": { "loading": "Skeleton layout", "empty": "No data for this month", "error": "Failed to load report" },
+      "layout": "Date-picker header. Clear, large typographic counters for totals. List of 'Top Selling Brands' below with mini progress bars indicating sales volume. Very structured, Bahi-Khata (ledger) feel with distinct divider lines."
+    }
+  ],
+  "images": {
+    "auth_hero_bg": { 
+      "url": "https://images.unsplash.com/photo-1671713682331-98086e7b9804?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTF8MHwxfHNlYXJjaHwzfHx3aGlza3klMjBnbGFzcyUyMGFtYmVyJTIwbGlnaHRpbmclMjBtb29keXxlbnwwfHx8fDE3ODI4ODkzNDV8MA&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1671713682331-98086e7b9804?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTF8MHwxfHNlYXJjaHwzfHx3aGlza3klMjBnbGFzcyUyMGFtYmVyJTIwbGlnaHRpbmclMjBtb29keXxlbnwwfHx8fDE3ODI4ODkzNDV8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "A glass of whiskey on a table with moody amber lighting"
+    },
+    "summary_card_texture": {
+      "url": "https://images.unsplash.com/photo-1525783826280-5a6e928544c3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGFtYmVyJTIwd2FybSUyMGJhY2tncm91bmQlMjB0ZXh0dXJlfGVufDB8fHx8MTc4Mjg4OTM0NHww&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1525783826280-5a6e928544c3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGFtYmVyJTIwd2FybSUyMGJhY2tncm91bmQlMjB0ZXh0dXJlfGVufDB8fHx8MTc4Mjg4OTM0NHww&ixlib=rb-4.1.0&q=85",
+      "alt": "Abstract warm amber texture background"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the 1 iOS-Native Clean personality. The app should feel like a premium, trustworthy ledger (Bahi), relying on generous padding, clear semantic colors (green for profit, red for low stock), and a warm amber brand accent.",
+    "Data Density over Decoration: For daily entry and catalog screens, replace complex tables with mobile-optimized 'Card-based lists'. Each card must expose crucial info (Stock Remaining, Price) immediately without tapping.",
+    "Input Speed is Critical: When recording a sale, prioritize large tap targets and use `[ - ] Qty [ + ]` steppers for quick adjustments instead of purely relying on text input. Use native numeric keypads when text entry is required.",
+    "FAB & Actions: Use a prominent, glassmorphic Floating Action Button on the Dashboard to instantly trigger the 'New Sale' flow. Bottom sheet is ideal for the actual sale entry to keep context.",
+    "Typography: Use Plus Jakarta Sans exclusively. Rely on font-size scaling (sm through 2xl) to create hierarchy rather than font weight (cap weight at 500 max).",
+    "Never use Indigo, Blue, or Purple. Stick rigidly to the defined palette of warm off-whites, amber accents, and charcoal text.",
+    "Implement haptics on stepper increment/decrement and successful sale record to provide tactile confirmation."
+  ]
+}
