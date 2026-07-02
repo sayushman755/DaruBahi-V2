@@ -3,32 +3,22 @@
     "version": ">= 14.0.0"
   },
   "build": {
-    "distribution": "internal"
-  },
-  "submit": {
-    "production": {}
-  },
-  "profiles": {
     "development": {
-      "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      }
+      "developmentClient": true,
+      "distribution": "internal"
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_BACKEND_URL": "https://darubahi-v2-production.up.railway.app"
+      },
       "android": {
         "buildType": "apk"
-      },
-      "ios": {
-        "simulator": false
       }
     },
-    "production": {
-      "distribution": "store",
-      "android": {
-        "buildType": "app-bundle"
-      }
-    }
+    "production": {}
+  },
+  "submit": {
+    "production": {}
   }
 }
