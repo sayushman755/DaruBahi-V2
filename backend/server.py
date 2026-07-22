@@ -1,13 +1,12 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Header
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from starlette.concurrency import run_in_threadpool
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
-import random
 import uuid
 import jwt
+import bcrypt
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -101,7 +100,6 @@ class InMemoryQuery:
 class InMemoryDatabase:
     def __init__(self):
         self.users = InMemoryCollection()
-        self.otp_codes = InMemoryCollection()
         self.categories = InMemoryCollection()
         self.products = InMemoryCollection()
         self.sales = InMemoryCollection()
@@ -111,9 +109,9 @@ class InMemoryDatabase:
 # ---------------------------------------------------------------------------
 # Config / DB
 # ---------------------------------------------------------------------------
-mongo_url = os.getenv("MONGO_URL", "mongodb://localhost:27017/darubahi")
+mongo_url = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 db_name = os.getenv("DB_NAME", "darubahi")
-use_memory_db = os.getenv("USE_MEMORY_DB", "1").lower() in {"1", "true", "yes", "on"}
+use_memory_db = os.getenv("USE_MEMORY_DB", "0").lower() in {"1", "true", "yes", "on"}
 
 try:
     if use_memory_db:
@@ -128,26 +126,7 @@ except Exception as exc:
 JWT_SECRET = os.environ.get('JWT_SECRET', 'dev-secret')
 JWT_ALG = 'HS256'
 
-TWILIO_SID = os.environ.get('TWILIO_ACCOUNT_SID')
-TWILIO_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
-TWILIO_VERIFY_SID = os.environ.get('TWILIO_VERIFY_SERVICE_SID')
-TWILIO_ENABLED = all([TWILIO_SID, TWILIO_TOKEN, TWILIO_VERIFY_SID])
-
-twilio_client = None
-if TWILIO_ENABLED:
-    try:
-        from twilio.rest import Client as TwilioClient
-        twilio_client = TwilioClient(TWILIO_SID, TWILIO_TOKEN)
-    except Exception as e:  # pragma: no cover
-        logging.warning(f"Twilio init failed: {e}")
-        twilio_client = None
-
 PRESET_CATEGORIES = ["Whisky", "Rum", "Beer", "Wine", "Desi", "Vodka", "Gin", "Brandy"]
-
-# Reserved QA number: always uses the dev OTP path (never hits Twilio) so
-# automated tests / demos can log in without a real SIM.
-TEST_PHONE = "+919999999999"
-TEST_OTP = "123456"
 
 app = FastAPI(title="DaruBahi API")
 api_router = APIRouter(prefix="/api")
@@ -200,8 +179,8 @@ async def get_phone_from_token(authorization: Optional[str]) -> str:
 async def current_user(authorization: Optional[str] = Header(None)) -> dict:
     """Require a fully set-up shop owner."""
     phone = await get_phone_from_token(authorization)
-    user = await db.users.find_one({"phone": phone}, {"_id": 0})
-    if not user:
+    user = await db.users.find_one({"phone": phone}, {"_id": 0, "password_hash": 0})
+    if not user or not user.get("shop_name"):
         raise HTTPException(status_code=404, detail="Shop profile not set up")
     return user
 
@@ -214,13 +193,14 @@ def clean(doc: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Models
 # ---------------------------------------------------------------------------
-class SendOtpReq(BaseModel):
+class RegisterReq(BaseModel):
     phone: str
+    password: str
 
 
-class VerifyOtpReq(BaseModel):
+class LoginReq(BaseModel):
     phone: str
-    code: str
+    password: str
 
 
 class SetupShopReq(BaseModel):
@@ -258,93 +238,99 @@ class StockEntryReq(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Password helpers
+# ---------------------------------------------------------------------------
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
+
+
+# ---------------------------------------------------------------------------
 # Auth routes
 # ---------------------------------------------------------------------------
 @api_router.get("/")
 async def root():
-    return {"message": "DaruBahi API running", "twilio": TWILIO_ENABLED}
+    return {"message": "DaruBahi API running"}
 
 
-@api_router.post("/auth/send-otp")
-async def send_otp(req: SendOtpReq):
+@api_router.post("/auth/register")
+async def register(req: RegisterReq):
     phone = normalize_phone(req.phone)
     if len(phone) < 10:
         raise HTTPException(status_code=400, detail="Enter a valid mobile number")
+    if not req.password or len(req.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
 
-    if phone == TEST_PHONE:
-        await db.otp_codes.update_one(
+    existing = await db.users.find_one({"phone": phone})
+    if existing and existing.get("password_hash"):
+        raise HTTPException(status_code=400, detail="Account already exists. Please log in.")
+
+    password_hash = hash_password(req.password)
+    now = now_iso()
+    if existing:
+        await db.users.update_one(
             {"phone": phone},
-            {"$set": {"phone": phone, "code": TEST_OTP, "created_at": now_iso()}},
-            upsert=True,
+            {"$set": {"password_hash": password_hash, "updated_at": now}},
         )
-        return {"sent": True, "dev_mode": True, "dev_otp": TEST_OTP, "phone": phone}
+    else:
+        await db.users.insert_one({
+            "id": new_id(),
+            "phone": phone,
+            "password_hash": password_hash,
+            "created_at": now,
+            "updated_at": now,
+        })
 
-    if twilio_client:
-        try:
-            await run_in_threadpool(
-                lambda: twilio_client.verify.v2.services(TWILIO_VERIFY_SID)
-                .verifications.create(to=phone, channel="sms")
-            )
-            return {"sent": True, "dev_mode": False, "phone": phone}
-        except Exception as e:
-            logger.warning(f"Twilio send failed, using dev fallback: {e}")
-
-    # Dev fallback: generate + store a code, return it so the app can proceed
-    code = f"{random.randint(0, 9999):04d}"
-    await db.otp_codes.update_one(
-        {"phone": phone},
-        {"$set": {"phone": phone, "code": code, "created_at": now_iso()}},
-        upsert=True,
-    )
-    return {"sent": True, "dev_mode": True, "dev_otp": code, "phone": phone}
-
-
-@api_router.post("/auth/verify-otp")
-async def verify_otp(req: VerifyOtpReq):
-    phone = normalize_phone(req.phone)
-    approved = False
-
-    if twilio_client and phone != TEST_PHONE:
-        try:
-            check = await run_in_threadpool(
-                lambda: twilio_client.verify.v2.services(TWILIO_VERIFY_SID)
-                .verification_checks.create(to=phone, code=req.code)
-            )
-            approved = check.status == "approved"
-        except Exception as e:
-            logger.warning(f"Twilio verify failed, trying dev fallback: {e}")
-
-    if not approved:
-        record = await db.otp_codes.find_one({"phone": phone})
-        if record and record.get("code") == req.code:
-            approved = True
-
-    if not approved:
-        raise HTTPException(status_code=400, detail="Invalid OTP. Please try again.")
-
-    await db.otp_codes.delete_one({"phone": phone})
-    user = await db.users.find_one({"phone": phone}, {"_id": 0})
+    user = await db.users.find_one({"phone": phone}, {"_id": 0, "password_hash": 0})
     token = make_token(phone)
-    return {"token": token, "is_new_user": user is None, "user": user}
+    # Shop not set up yet → is_new_user = True
+    is_new_user = not (user and user.get("shop_name"))
+    return {"token": token, "is_new_user": is_new_user, "user": user if not is_new_user else None}
+
+
+@api_router.post("/auth/login")
+async def login(req: LoginReq):
+    phone = normalize_phone(req.phone)
+    user = await db.users.find_one({"phone": phone})
+    if not user or not user.get("password_hash"):
+        raise HTTPException(status_code=400, detail="No account found. Please sign up.")
+
+    if not verify_password(req.password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Incorrect phone number or password")
+
+    token = make_token(phone)
+    clean_user = await db.users.find_one({"phone": phone}, {"_id": 0, "password_hash": 0})
+    is_new_user = not clean_user.get("shop_name")
+    return {"token": token, "is_new_user": is_new_user, "user": clean_user if not is_new_user else None}
 
 
 @api_router.post("/auth/setup-shop")
 async def setup_shop(req: SetupShopReq, authorization: Optional[str] = Header(None)):
     phone = await get_phone_from_token(authorization)
-    existing = await db.users.find_one({"phone": phone}, {"_id": 0})
+    existing = await db.users.find_one({"phone": phone})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Account not found")
     doc = {
-        "id": existing["id"] if existing else new_id(),
-        "phone": phone,
         "shop_name": req.shop_name.strip(),
         "owner_name": req.owner_name.strip(),
         "shop_type": req.shop_type,
         "address": req.address or "",
         "license_number": req.license_number or "",
-        "created_at": existing["created_at"] if existing else now_iso(),
         "updated_at": now_iso(),
     }
-    await db.users.update_one({"phone": phone}, {"$set": doc}, upsert=True)
-    return doc
+    if not existing.get("id"):
+        doc["id"] = new_id()
+    if not existing.get("created_at"):
+        doc["created_at"] = now_iso()
+    await db.users.update_one({"phone": phone}, {"$set": doc})
+    updated = await db.users.find_one({"phone": phone}, {"_id": 0, "password_hash": 0})
+    return updated
 
 
 @api_router.get("/auth/me")

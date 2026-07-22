@@ -11,12 +11,14 @@ type User = {
   license_number?: string;
 } | null;
 
+type AuthResult = { is_new_user: boolean };
+
 type AuthState = {
   user: User;
   authed: boolean;
   loading: boolean;
-  sendOtp: (phone: string) => Promise<{ dev_mode: boolean; dev_otp?: string; phone: string }>;
-  verifyOtp: (phone: string, code: string) => Promise<{ is_new_user: boolean }>;
+  register: (phone: string, password: string) => Promise<AuthResult>;
+  login: (phone: string, password: string) => Promise<AuthResult>;
   setupShop: (data: any) => Promise<void>;
   refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
@@ -49,16 +51,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [refreshUser]);
 
-  const sendOtp = async (phone: string) => {
-    return api("/auth/send-otp", { method: "POST", body: { phone }, auth: false });
+  const register = async (phone: string, password: string) => {
+    const res = await api<{ token: string; is_new_user: boolean; user: User }>(
+      "/auth/register",
+      { method: "POST", body: { phone, password }, auth: false }
+    );
+    await setToken(res.token);
+    setAuthed(true);
+    setUser(res.user);
+    return { is_new_user: res.is_new_user };
   };
 
-  const verifyOtp = async (phone: string, code: string) => {
-    const res = await api<{ token: string; is_new_user: boolean; user: User }>("/auth/verify-otp", {
-      method: "POST",
-      body: { phone, code },
-      auth: false,
-    });
+  const login = async (phone: string, password: string) => {
+    const res = await api<{ token: string; is_new_user: boolean; user: User }>(
+      "/auth/login",
+      { method: "POST", body: { phone, password }, auth: false }
+    );
     await setToken(res.token);
     setAuthed(true);
     setUser(res.user);
@@ -78,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, authed, loading, sendOtp, verifyOtp, setupShop, refreshUser, logout }}
+      value={{ user, authed, loading, register, login, setupShop, refreshUser, logout }}
     >
       {children}
     </AuthContext.Provider>
