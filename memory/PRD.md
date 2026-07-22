@@ -1,52 +1,45 @@
-# DaruBahi — Product Requirements Document
+# DaruBahi — PRD
 
-## Original Problem Statement
-Mobile app for a liquor store's inventory & sales management. Smoothly add liquor
-categories (Beer, Wine, Whisky, Rum, Desi) and, under each, brands with bottle sizes
-and count of sale. Maintain a record of every sale and generate full reports per day
-and per brand. Login/Signup must work perfectly; each shop owner has an individual
-account. Shop types: Composite (FL+BB), Desi, Desi+Beer. Per-product daily entry
-tracks previous/new/total stock, quantity sold, rate, amount, cost/unit, margin,
-profit and remaining stock. Monthly report shows sales of month, total profit,
-top 5 brands, and remaining stock.
+## Original problem statement
+> Build a mobile app: fix only the login and signup of this mobile application.
+
+User reported that OTP was never actually sent (Twilio not configured), the app just showed a "dev OTP" on screen. User asked to "do whatever is good".
+
+## Decision
+Replaced phone-OTP auth with **phone + password** JWT auth (bearer tokens stored in expo-secure-store on native, AsyncStorage on web). No Twilio / SMS dependency.
 
 ## Architecture
-- **Frontend:** Expo Router (React Native), Plus Jakarta Sans (bundled), warm amber
-  "ledger" theme. Bottom tabs: Home, Catalog, Reports, More. Modal routes for Sell,
-  Daily Entry, Add/Edit Product. Auth via JWT stored in secure storage.
-- **Backend:** FastAPI + MongoDB (motor). All routes under `/api`. UUID string IDs,
-  `_id` excluded from responses.
-- **Auth:** Mobile + OTP via Twilio Verify. Dev fallback returns OTP in response if
-  Twilio send fails. Reserved QA number `9999999999` always accepts OTP `123456`.
+- Backend: FastAPI + MongoDB (motor). bcrypt for hashing, PyJWT for tokens (60d expiry).
+- Frontend: React Native + Expo Router (TypeScript). Metro dev server on port 3000.
+- Auth endpoints (all under `/api`):
+  - `POST /auth/register` `{phone, password}` → `{token, is_new_user, user}`
+  - `POST /auth/login` `{phone, password}` → `{token, is_new_user, user}`
+  - `POST /auth/setup-shop` (Bearer) → user with shop fields
+  - `GET /auth/me` (Bearer) → user (404 until shop set up)
+- Phone normalization: 10-digit Indian → `+91XXXXXXXXXX`.
 
-## User Personas
-- **Shop Owner (primary):** Non-technical liquor retailer who records daily sales and
-  checks day/month profit on a phone.
+## What's implemented (Jan 2026)
+- [x] Phone+password signup with bcrypt hashing (min 6 chars)
+- [x] Phone+password login with clear error messages
+- [x] JWT bearer token flow; token persisted via expo-secure-store / AsyncStorage
+- [x] Single login screen with Sign in / Sign up tabs, show/hide password, mode switch link
+- [x] Automatic routing: new user → /setup, existing → /(tabs) dashboard
+- [x] Shop setup flow untouched (still works)
+- [x] Removed all OTP + Twilio code paths
+- [x] Backend .env + frontend .env created; USE_MEMORY_DB=0 (real Mongo)
+- [x] 14/14 backend pytest + Playwright E2E pass (auth only)
 
-## Core Requirements (static)
-1. OTP login/signup, one account per mobile number (shop).
-2. Category + brand/product catalog with sizes, cost & selling price, stock.
-3. Record sales (decrement stock, compute profit).
-4. Daily stock entry (opening + added − sold − damaged = closing).
-5. Daily & Monthly reports (totals, brand-wise, top 5, category-wise, remaining stock).
+## Not touched (out of scope for this task)
+- Products / sales / stock entries / reports / dashboard (existing)
+- Password reset, email verification, OAuth
+- Admin panel, brute-force protection, rate limiting
 
-## Implemented (2026-07-01)
-- Mobile OTP auth (Twilio + dev/QA fallback), shop setup, JWT session, logout.
-- Categories (8 presets + custom), Products CRUD (soft delete), category filter.
-- Sell Bottle flow with stepper + live amount/profit; stock validation.
-- Daily Entry flow with live closing-stock calc; auto-records sale when sold>0.
-- Dashboard (today/month sale & profit, bottles, low stock, top sellers, recent sales, FAB).
-- Reports: Daily (brand-wise) and Monthly (top 5 brands, category profit, remaining stock/value).
-- Full test coverage: backend 18/18 pytest, frontend E2E all green.
+## Prioritized backlog
+- P1: Add "Forgot password" (SMS or security question) once SMS provider is chosen
+- P2: Rate-limit `/auth/login` (currently unlimited)
+- P2: Tighten CORS `allow_origins` from `*` to explicit preview + prod URLs
+- P3: Shorten JWT TTL + add refresh token rotation
+- P3: Migrate remaining OTP test file references / add products+sales regression suite
 
-## Backlog / Remaining
-- **P1:** Editable/cancellable sales & sale corrections (existed in reference app).
-- **P1:** Expenses tracking + net profit (sales profit − expenses).
-- **P2:** Date-range picker for reports; export/share report (PDF/CSV).
-- **P2:** Employee role with restricted (no-reports) access.
-- **P2:** Clean RN-web console warnings (shadow* → boxShadow, pointerEvents).
-
-## Next Tasks
-1. Add Expenses module and net-profit metric on dashboard/reports.
-2. Add sale edit/cancel with stock restore.
-3. Add report date/month picker + share/export.
+## Test credentials
+See `/app/memory/test_credentials.md`.
