@@ -4,7 +4,7 @@ import random
 import pytest
 import requests
 
-BASE_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "https://liquor-ledger-10.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "https://login-signup-mobile.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
 
 TEST_PHONE = "9999999999"
